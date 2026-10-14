@@ -1,0 +1,7 @@
+model,accuracy_%,macro_f1_%,train_seconds,predict_seconds
+logistic_regression,92.63,92.52,28.6,0.0
+knn_1,96.91,96.89,0.0,6.2
+knn_3,97.05,97.04,0.1,6.1
+knn_5,96.88,96.87,0.0,6.3
+naive_bayes,55.58,50.9,0.7,0.8
+decision_tree,88.18,88.02,21.1,0.0
