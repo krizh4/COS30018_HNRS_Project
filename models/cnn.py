@@ -4,6 +4,7 @@ MNIST data loading + the CNN models.
 Run this file directly to check the data loads:  python models/cnn.py
 """
 from pathlib import Path
+from torch import nn
 
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
@@ -32,6 +33,32 @@ def get_loaders(batch_size=128, root=ROOT):
     test_loader = DataLoader(test_set, batch_size=512, shuffle=False)
     return train_loader, test_loader
 
+class SimpleCNN(nn.Module):
+    """LeNet-style CNN: two convolution blocks, then two fully connected layers."""
+
+    def __init__(self):
+        super().__init__()
+        # Part 1: find patterns in the picture
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),   # 1x28x28  -> 32x28x28 (32 pattern maps)
+            nn.ReLU(),
+            nn.MaxPool2d(2),                              # 32x28x28 -> 32x14x14 (half size)
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),  # 32x14x14 -> 64x14x14
+            nn.ReLU(),
+            nn.MaxPool2d(2),                              # 64x14x14 -> 64x7x7
+        )
+        # Part 2: turn the patterns into 10 scores
+        self.classifier = nn.Sequential(
+            nn.Flatten(),                                 # 64x7x7 -> one list of 3136 numbers
+            nn.Linear(64 * 7 * 7, 128),
+            nn.ReLU(),
+            nn.Linear(128, 10),                           # one score per digit 0-9
+        )
+
+    def forward(self, x):
+        """What happens when a batch of pictures goes through the model."""
+        return self.classifier(self.features(x))
+
 if __name__ == "__main__":
     train_loader, test_loader = get_loaders()
     print("training pictures:", len(train_loader.dataset))
@@ -45,8 +72,15 @@ if __name__ == "__main__":
     print("pixel range:", images.min().item(), "to", images.max().item())
     print("first 10 labels:", labels[:10].tolist())
 
+    # Push the batch through an UNTRAINED model
+    model = SimpleCNN()
+    scores = model(images)
+    print("model output:", scores.shape)               # torch.Size([128, 10])
+    print("guesses (untrained):", scores.argmax(dim=1)[:10].tolist())
+    print("parameters to learn:", sum(p.numel() for p in model.parameters()))
+
     # show 16 of them with their labels
-    
+
     fig, axes = plt.subplots(4, 4, figsize=(6, 6))
     for i, ax in enumerate(axes.flat):
         ax.imshow(images[i].squeeze(), cmap="gray")   # squeeze: (1,28,28) -> (28,28)
