@@ -1,44 +1,56 @@
-import torch
-from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
-import matplotlib.pyplot as plt
+"""
+MNIST data loading + the CNN models.
 
+Run this file directly to check the data loads:  python models/cnn.py
+"""
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
+
+# the data/ folder at the top of the repo. MNIST is saved in data/MNIST/raw
 ROOT = Path(__file__).parent.parent / "data"
 
 def get_loaders(batch_size=128, root=ROOT):
-    # build train_set and test_set with datasets.MNIST
-    #    train=True | train=False
-    #    download=False (have already downloaded)
-    #    transform=transforms.ToTensor()
-    train_set = datasets.MNIST(root, train=True, download=False, transform=transforms.ToTensor())
-    test_set = datasets.MNIST(root, train=False, download=False, transform=transforms.ToTensor())
+    """Download MNIST (first time only) and return (train_loader, test_loader)."""
 
-    # wrap each in DataLoader
-    #    - train: shuffle=True, num_workers=4
-    #    - test:  shuffle=False, batch_size=512, num_workers=2
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=4)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=2)
+    # ToTensor turns each 28x28 picture (pixel values 0-255)
+    # into a tensor of shape (1, 28, 28) with values 0.0-1.0
+    to_tensor = transforms.ToTensor()
 
-    # returning both
+    # train=True  -> the 60,000 training pictures
+    # train=False -> the 10,000 test pictures the model never learns from
+    # download=True fetches the files if they are not already in root/MNIST/raw
+    train_set = datasets.MNIST(root, train=True, download=True, transform=to_tensor)
+    test_set = datasets.MNIST(root, train=False, download=True, transform=to_tensor)
+
+    # A dataLoader hands out the pictures in batches.
+    # shuffle = True mixes the training order every epoch so the model can't
+    # learn anything from the order. test data never needs shuffling.
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_set, batch_size=512, shuffle=False)
     return train_loader, test_loader
 
 if __name__ == "__main__":
     train_loader, test_loader = get_loaders()
-    print(len(train_loader.dataset), len(test_loader.dataset))
+    print("training pictures:", len(train_loader.dataset))
+    print("test pictures:", len(test_loader.dataset))
+
+    # take ONE batch and look at it
 
     images, labels = next(iter(train_loader))
-    print(images.shape, labels.shape)
-    print(images.min().item(), images.max().item())
-    print(labels[:8])
+    print("batch of images:", images.shape)    # torch.Size([128, 1, 28, 28])
+    print("batch of labels:", labels.shape)    # torch.Size([128])
+    print("pixel range:", images.min().item(), "to", images.max().item())
+    print("first 10 labels:", labels[:10].tolist())
 
+    # show 16 of them with their labels
+    
     fig, axes = plt.subplots(4, 4, figsize=(6, 6))
     for i, ax in enumerate(axes.flat):
-        ax.imshow(images[i].squeeze(), cmap="gray")
+        ax.imshow(images[i].squeeze(), cmap="gray")   # squeeze: (1,28,28) -> (28,28)
         ax.set_title(labels[i].item())
         ax.axis("off")
-
     plt.tight_layout()
-    plt.savefig("mnist_samples.png", dpi=150)
     plt.show()
