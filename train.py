@@ -15,7 +15,9 @@ from pathlib import Path
 import torch
 from torch import nn
 
-from models.cnn import SimpleCNN, get_loaders
+from models.cnn import BetterCNN, SimpleCNN, get_loaders
+from models.mlp import MLP
+from models.vit import TinyViT
 
 # ---- Settings (hyper-parameters) ----
 EPOCHS = 5                 # how many full passes over the 60,000 training pictures
@@ -27,7 +29,10 @@ CHECKPOINT_DIR = Path("checkpoints")
 RESULTS_DIR = Path("results")
 
 MODELS = {
+    "mlp": MLP,
     "cnn": SimpleCNN,
+    "cnn_bn": BetterCNN,
+    "vit": TinyViT,
 }
 
 

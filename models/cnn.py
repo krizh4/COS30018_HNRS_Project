@@ -59,6 +59,30 @@ class SimpleCNN(nn.Module):
         """What happens when a batch of pictures goes through the model."""
         return self.classifier(self.features(x))
 
+class BetterCNN(nn.Module):
+    """Deeper CNN with Batch Normalisation (steadier training) and Dropout (less overfitting)"""
+
+    def __init__(self, dropout=0.3, num_classes=10):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
+            nn.Conv2d(32, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
+            nn.MaxPool2d(2),                                         # -> 32x14x14
+            nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.Conv2d(64, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.MaxPool2d(2),                                         # -> 64x7x7
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Dropout(dropout),                                     # switch off 30% of neurons while training
+            nn.Linear(64 * 7 * 7, 256), nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(256, num_classes),                             # 10 digits (16 later for the extension)
+        )
+
+    def forward(self, x):
+        return self.classifier(self.features(x))
+
 if __name__ == "__main__":
     train_loader, test_loader = get_loaders()
     print("training pictures:", len(train_loader.dataset))
