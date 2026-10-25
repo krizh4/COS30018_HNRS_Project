@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# HNRS generated files (shared on OneDrive instead)
+checkpoints/
+results/*.png
+data/digit_folders/
+data/multidigit_synthetic/
+data/multidigit_real/
+data/symbols/
+data/expressions/
