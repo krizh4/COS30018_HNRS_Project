@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HNRS · Handwritten Number Recognition</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">HNRS <span>Handwritten Number Recognition</span></div>
+    <div class="settings">
+      <label>Model <select id="model"></select></label>
+      <label>Threshold
+        <select id="threshold">
+          <option>adaptive</option><option>otsu</option><option>fixed</option>
+        </select>
+      </label>
+      <label>Segmentation
+        <select id="segmentation">
+          <option>components</option><option>contours</option><option>projection</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="show-binary"> Show preprocessed image</label>
+    </div>
+  </header>
+
+  <main>
+    <section class="card input">
+      <nav class="tabs">
+        <button class="tab active" data-tab="draw">Draw</button>
+        <button class="tab" data-tab="photo">Photo</button>
+        <button class="tab" data-tab="compose">Compose</button>
+        <button class="tab" data-tab="train">Train</button>
+      </nav>
+
+      <div class="panel active" id="draw">
+        <canvas id="canvas" width="620" height="260"></canvas>
+        <div class="row">
+          <button class="primary" id="recognise-drawing">Recognise</button>
+          <button id="clear">Clear</button>
+          <label>Pen size <input type="range" id="pen" min="6" max="40" value="16"></label>
+          <label class="check"><input type="checkbox" id="live" checked> Recognise when I lift the pen</label>
+        </div>
+      </div>
+
+      <div class="panel" id="photo">
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept="image/*" hidden>
+          <strong>Choose a photo</strong> or drop it here
+          <small>Name it after the number (e.g. 2026.jpg) and the result says if it was read correctly.</small>
+        </label>
+        <img id="photo-preview" class="preview" alt="">
+      </div>
+
+      <div class="panel" id="compose">
+        <p>Build a number from single-digit pictures, then recognise it.</p>
+        <label class="check"><input type="radio" name="source" value="mnist" checked> MNIST test set (pictures the models never trained on)</label>
+        <label class="check"><input type="radio" name="source" value="folder"> Folder with sub-folders 0 to 9:
+          <input type="text" id="folder" value="data/digit_folders"></label>
+        <div class="row">
+          <label>Number <input type="text" id="target" value="4719" inputmode="numeric"></label>
+          <button id="random">Random</button>
+          <button class="primary" id="compose-button">Compose and recognise</button>
+        </div>
+        <img id="compose-preview" class="preview" alt="">
+      </div>
+
+      <div class="panel" id="train">
+        <div class="form">
+          <label>Model <select id="train-model"></select></label>
+          <label>Epochs <input type="number" id="epochs" value="5" min="1" max="50"></label>
+          <label>Batch size <input type="number" id="batch" value="128" min="16" max="512" step="16"></label>
+          <label>Learning rate <input type="number" id="lr" value="0.001" step="0.0001"></label>
+        </div>
+        <p class="warning">Training saves to checkpoints/&lt;model&gt;.pt and results/&lt;model&gt;_log.csv,
+          replacing any model with the same name.</p>
+        <button class="primary" id="start-training">Start training</button>
+        <progress id="progress" value="0" max="1"></progress>
+        <pre id="train-log"></pre>
+      </div>
+    </section>
+
+    <section class="card result">
+      <h2>Result</h2>
+      <div id="number" class="number">–</div>
+      <div id="detail" class="detail">Draw, open or compose a number</div>
+      <figure class="picture">
+        <img id="picture" alt="">
+        <svg id="boxes"></svg>
+      </figure>
+      <p class="caption">What the model saw (red = less than 80% sure)</p>
+      <div id="digits" class="digits"></div>
+    </section>
+  </main>
+
+  <footer id="status">Ready</footer>
+  <script src="/static/app.js"></script>
+</body>
+</html>
