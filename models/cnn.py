@@ -1,12 +1,10 @@
 """
 MNIST data loading + the CNN models.
-
-Run this file directly to check the data loads:  python models/cnn.py
 """
 from pathlib import Path
-from torch import nn
-
 import matplotlib.pyplot as plt
+
+from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
@@ -14,10 +12,10 @@ from torchvision import datasets, transforms
 ROOT = Path(__file__).parent.parent / "data"
 
 def get_loaders(batch_size=128, augment=False, root=ROOT):
-    """Download MNIST (first time only) and return (train_loader, test_loader)
+    """
+    Download MNIST (first time only) and return (train_loader, test_loader)
 
-    augment = True randomly rotates, shifts and resizes the TRAINING pictures a little,
-    so the model gets used to messy real handwriting. Test pictures are never changed
+    augment = True randomly rotates, shifts and resizes the TRAINING pictures a little, so the model gets used to messy real handwriting. Test pictures are never changed
     """
     if augment:
         train_tf = transforms.Compose([
@@ -26,6 +24,7 @@ def get_loaders(batch_size=128, augment=False, root=ROOT):
         ])
     else:
         train_tf = transforms.ToTensor()
+    
     test_tf = transforms.ToTensor()          # test pictures stay exactly as they are
 
     train_set = datasets.MNIST(root, train=True, download=True, transform=train_tf)

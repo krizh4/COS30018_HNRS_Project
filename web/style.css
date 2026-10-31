@@ -1,0 +1,101 @@
+/* No web fonts or CDNs: the app must work offline, including inside the .exe */
+:root {
+  --bg: #f6f6f4; --card: #ffffff; --line: #e3e2de; --text: #1d1d1b; --muted: #6b6a66;
+  --accent: #3b5bdb; --accent-text: #ffffff; --good: #1e8449; --bad: #c0392b; --field: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161615; --card: #1f1f1d; --line: #34332f; --text: #ecebe7; --muted: #9c9a94;
+    --accent: #748ffc; --accent-text: #10131f; --good: #52be80; --bad: #ec7063; --field: #282825;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh; display: flex; flex-direction: column;
+}
+
+.topbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--card);
+}
+.brand { font-weight: 700; font-size: 17px; }
+.brand span { font-weight: 400; color: var(--muted); font-size: 14px; margin-left: 6px; }
+.settings { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+
+label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+label.check { color: var(--text); }
+select, input[type=text], input[type=number] {
+  font: inherit; color: var(--text); background: var(--field);
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px;
+}
+input[type=number] { width: 90px; }
+#folder { width: 220px; }
+#target { width: 120px; }
+button {
+  font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--field); color: var(--text);
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+button:disabled { opacity: 0.5; cursor: default; }
+
+main {
+  flex: 1; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px;
+  padding: 20px 24px; align-items: start;
+}
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: -4px 0 16px; }
+.tab { border: none; background: none; border-radius: 0; padding: 8px 14px; color: var(--muted); border-bottom: 2px solid transparent; }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.panel { display: none; }
+.panel.active { display: block; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
+.panel > label.check { display: flex; margin: 6px 0; }
+
+#canvas {
+  width: 100%; height: auto; display: block; background: #fff; cursor: crosshair;
+  border: 1px solid var(--line); border-radius: 10px; touch-action: none;
+}
+.drop {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 36px 16px;
+  border: 2px dashed var(--line); border-radius: 12px; cursor: pointer; text-align: center; color: var(--text);
+}
+.drop.over { border-color: var(--accent); }
+.drop small { color: var(--muted); }
+.preview { display: block; max-width: 100%; max-height: 320px; margin-top: 12px; border-radius: 8px; }
+.preview:not([src]) { display: none; }
+#compose-preview { width: 100%; max-width: 480px; }   /* composed numbers are only 28 px tall */
+
+.form { display: grid; grid-template-columns: repeat(2, max-content); gap: 10px 24px; margin-bottom: 12px; }
+.warning { color: #b4570a; }
+progress { display: block; width: 100%; margin: 14px 0 10px; }
+#train-log {
+  min-height: 150px; margin: 0; padding: 10px; border-radius: 8px; background: var(--bg);
+  border: 1px solid var(--line); font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap;
+}
+
+.result h2 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.number { font-size: 52px; font-weight: 700; line-height: 1.1; word-break: break-all; }
+.detail { color: var(--muted); margin: 4px 0 14px; }
+.detail .good { color: var(--good); font-weight: 600; }
+.detail .bad { color: var(--bad); font-weight: 600; }
+/* The picture fills the panel width (small composed numbers get enlarged). object-fit: contain
+   and the SVG's default viewBox scaling both centre the picture the same way, so boxes line up */
+.picture { position: relative; margin: 0; }
+.picture img { display: block; width: 100%; height: auto; max-height: 280px; object-fit: contain; border-radius: 8px; }
+.picture img:not([src]) { display: none; }
+.picture svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.picture rect { fill: none; stroke: #28aa28; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.picture text { fill: #28aa28; font-weight: 700; font-family: system-ui, sans-serif; }
+.caption { color: var(--muted); margin: 16px 0 6px; }
+.digits { display: flex; flex-wrap: wrap; gap: 8px; }
+.digit { text-align: center; font-size: 12px; font-weight: 600; }
+.digit img { display: block; width: 56px; height: 56px; image-rendering: pixelated; border-radius: 6px; }
+.digit.sure { color: var(--good); }
+.digit.unsure { color: var(--bad); }
+
+footer { padding: 8px 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; background: var(--card); }
+footer.error { color: var(--bad); }
