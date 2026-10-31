@@ -1,9 +1,11 @@
 """
 Task 2 - Image segmentation: cut a preprocessed image of a number into single digits
 
-    segment(binary)  -  list of (box, digit28), sorted left to right
+    segment(binary)  -  list of (box, digit28, line) in reading order:
+                     lines top to bottom, each line left to right
                      box = (x, y, w, h) in the original image
                      digit28 = 28x28 MNIST-style array from make_mnist_like
+                     line = 0 for the first line of writing, 1 for the next, ...
 
 Three techniques are included so them can be compared:
     "components"  connected components  - each separate blob of ink is a digit
@@ -50,22 +52,52 @@ def boxes_by_projection(binary):
 
 # ---------- clean-up rules ----------
 
-def merge_overlapping(boxes):
-    """Join boxes that sit above each other (a broken '5', the dots of a division sign)."""
-    boxes = sorted(boxes, key=lambda b: b[0])
+def merge_overlapping(boxes, max_height):
+    """Join boxes that sit above each other (a broken '5', the dots of a division sign),
+    but only if the joined box is still about one character tall. Two digits on
+    different lines also share columns, and joining those makes a box twice as tall."""
     merged = []
-    for box in boxes:
-        if merged:
-            x, y, w, h = merged[-1]
-            bx, by, bw, bh = box
+    for bx, by, bw, bh in sorted(boxes, key=lambda b: b[0]):
+        for i, (x, y, w, h) in enumerate(merged):           # check every box, not just the last
             overlap = min(x + w, bx + bw) - max(x, bx)
-            if overlap > 0.5 * min(w, bw):                     # mostly the same columns
-                nx, ny = min(x, bx), min(y, by)
-                merged[-1] = (nx, ny, max(x + w, bx + bw) - nx, max(y + h, by + bh) - ny)
-                continue
-        merged.append(box)
+            top, bottom = min(y, by), max(y + h, by + bh)
+            if overlap > 0.5 * min(w, bw) and bottom - top <= 1.3 * max_height:
+                left = min(x, bx)
+                merged[i] = (left, top, max(x + w, bx + bw) - left, bottom - top)
+                break
+        else:
+            merged.append((bx, by, bw, bh))
     return merged
 
+
+def group_into_lines(boxes):
+    """Reading order: lines top to bottom, each line left to right.
+    A box joins a line when its vertical middle falls inside that line's top..bottom."""
+    lines = []
+    for box in sorted(boxes, key=lambda b: b[1] + b[3] / 2):
+        x, y, w, h = box
+        middle = y + h / 2
+        for line in lines:
+            if line["top"] <= middle <= line["bottom"]:
+                line["boxes"].append(box)
+                line["top"], line["bottom"] = min(line["top"], y), max(line["bottom"], y + h)
+                break
+        else:
+            lines.append({"top": y, "bottom": y + h, "boxes": [box]})
+    return [sorted(line["boxes"], key=lambda b: b[0]) for line in lines]
+
+
+def crop_box(binary, labels, stats, box):
+    """Cut out one box, keeping only blobs that lie fully inside it. A plain rectangle
+    crop also picks up the edge of a neighbour (or a dropped speck) that pokes into it."""
+    x, y, w, h = box
+    piece = binary[y:y + h, x:x + w].copy()
+    ids = labels[y:y + h, x:x + w]
+    for i in np.unique(ids[ids > 0]):
+        bx, by, bw, bh = stats[i, :4]
+        if bx < x or by < y or bx + bw > x + w or by + bh > y + h:
+            piece[ids == i] = 0
+    return piece
 
 def split_wide(binary, box, typical_height, min_ratio=1.3, max_neck=0.2):
     """Two touching digits make one wide box. Cut it at the column with the least ink.
@@ -89,7 +121,7 @@ def split_wide(binary, box, typical_height, min_ratio=1.3, max_neck=0.2):
 # ---------- the main function ----------
 
 def segment(binary, method="components", split_touching=True):
-    """Return [(box, digit28), ...] from left to right."""
+    """Return [(box, digit28, line), ...] in reading order."""
     if method == "components":
         boxes = boxes_by_components(binary)
     elif method == "contours":
@@ -113,16 +145,31 @@ def segment(binary, method="components", split_touching=True):
     biggest = max(w * h for _, _, w, h in boxes)
     boxes = [b for b in boxes if b[2] * b[3] > 0.01 * biggest]
 
-    boxes = merge_overlapping(boxes)
-    if split_touching:
-        typical_height = float(np.median([h for _, _, _, h in boxes]))
-        boxes = [part for b in boxes for part in split_wide(binary, b, typical_height)]
+    boxes = merge_overlapping(boxes, max_height=max(h for _, _, _, h in boxes))
 
-    boxes.sort(key=lambda b: b[0])                         # left to right = reading order
+    # Drop marks far smaller than a normal digit (a full stop, a stray dot): the model
+    # would blow them up to 20x20 and read a filled circle as "0". Using the longer
+    # side keeps a wide-but-flat minus sign
+    typical_height = float(np.median([h for _, _, _, h in boxes]))
+    boxes = [b for b in boxes if max(b[2], b[3]) >= 0.3 * typical_height]
+
+    was_split = set()                                      # halves of touching digits share one blob
+    if split_touching:
+        new = []
+        for b in boxes:
+            parts = split_wide(binary, b, typical_height)
+            if len(parts) > 1:
+                was_split.update(parts)
+            new += parts
+        boxes = new
+
+    _, labels, stats, _ = cv2.connectedComponentsWithStats(binary, connectivity=8)
     results = []
-    for x, y, w, h in boxes:
-        digit = binary[y:y + h, x:x + w]
-        results.append(((int(x), int(y), int(w), int(h)), make_mnist_like(digit)))
+    for line_number, line in enumerate(group_into_lines(boxes)):
+        for box in line:
+            x, y, w, h = box
+            digit = binary[y:y + h, x:x + w] if box in was_split else crop_box(binary, labels, stats, box)
+            results.append(((int(x), int(y), int(w), int(h)), make_mnist_like(digit), line_number))
     return results
 
 
@@ -141,7 +188,7 @@ if __name__ == "__main__":
 
     shown = image.copy()
     thickness = max(2, image.shape[1] // 250)            # thicker lines on big phone photos
-    for (x, y, w, h), _ in parts:
+    for ax, (_, digit) in zip(axes[1:], parts):
         cv2.rectangle(shown, (x, y), (x + w, y + h), (0, 0, 255), thickness)
     fig, axes = plt.subplots(1, len(parts) + 1, figsize=(3 * (len(parts) + 1), 3))
     axes = np.atleast_1d(axes)

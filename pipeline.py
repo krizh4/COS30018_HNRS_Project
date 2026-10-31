@@ -3,8 +3,8 @@ Task 4 - the whole system in one function: image in, number out
 
 
     result = recognise(image, model)
-    result["number"]       "2026"
-    result["boxes"]        [(x, y, w, h), ...] one per digit, left to right
+    result["number"]       "2026"   (a second line of writing comes after a space: "64 710")
+    result["boxes"]        [(x, y, w, h), ...] one per digit, in reading order
     result["confidences"]  [0.99, 0.97, ...]  how sure the model was about each digit
     result["digits"]       the 28x28 pictures the model actually saw
     result["binary"]       the preprocessed black/white image
@@ -28,10 +28,15 @@ from segmentation.segmentation import segment
 def recognise(image, model, threshold="adaptive", seg_method="components"):
     binary = preprocess(image, threshold)                  # task 1
     parts = segment(binary, seg_method)                    #  task 2
-    boxes = [box for box, _ in parts]
-    digits = [digit for _, digit in parts]
+    boxes = [box for box, _, _ in parts]
+    digits = [digit for _, digit, _ in parts]
+    lines = [line for _, _, line in parts]
     labels, confidences = predict_digits(model, digits)    # task 3
-    number = "".join(str(d) for d in labels)               # join left to right
+    number = ""                                            # join in reading order,
+    for i, label in enumerate(labels):                     # with a space where a new line starts
+        if i > 0 and lines[i] != lines[i - 1]:
+            number += " "
+        number += str(label)
     return {"number": number, "boxes": boxes, "labels": labels,
             "confidences": confidences, "digits": digits, "binary": binary}
 

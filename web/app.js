@@ -61,7 +61,7 @@ function showResult(result, image) {
     verdict.textContent = result.correct ? "Correct" : "Wrong";
     detail.append(verdict, ` (expected ${result.expected}) · `);
   } else {
-    detail.append(result.number ? `${result.number.length} character(s) · ` : "No digits found · ");
+   detail.append(result.number ? `${result.labels.length} character(s) · ` : "No digits found · ");
   }
   detail.append(`${result.model} · ${result.ms} ms`);
 
