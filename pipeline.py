@@ -57,28 +57,39 @@ def is_sum(text):
 
 
 def fix_look_alikes(labels, confidences, probs):
-    """The model often can't tell a 1 from a bracket, so let the maths decide.
-    In a plain number a bracket must be a 1. In a sum, try every 1 / ( / ) choice for
-    those marks and keep the most likely one that gives a sum that can be calculated."""
+    """ the model often can't tell a 1 from a bracket, so let the maths decide
+    In a plain number a bracket must be a 1. In a sum, try the 1 / ( / ) choices for the
+    marks the model is unsure about, and keep the most likely one that can be calculated"""
+
     labels, confidences = list(labels), list(confidences)
     if len(probs) == 0 or probs.shape[1] <= max(LOOK_ALIKES):
-        return labels, confidences                         # model has no brackets (e.g. cnn_junk)
-    unsure = [i for i, label in enumerate(labels) if label in LOOK_ALIKES]
-    if not unsure or len(unsure) > 8:
-        return labels, confidences
-    for i in unsure:                                       # sure it is one of the three look-alikes
+        return labels, confidences   
+                          # model has no brackets (ex: cnn_junk)
+    look_alikes = [i for i, label in enumerate(labels) if label in LOOK_ALIKES]
+
+    for i in look_alikes:                                  # sure it is one of the three look-alikes
         confidences[i] = float(probs[i][LOOK_ALIKES].sum())
+
     if not any(label in OPERATORS for label in labels):    # a plain number: no brackets
-        for i in unsure:
+        for i in look_alikes:
             labels[i] = 1
         return labels, confidences
+    
+    text = lambda trial: "".join(label_text(t) for t in trial)
+    if is_sum(text(labels)):
+        return labels, confidences                         # already makes sense: keep the model's answer
+    # only re-think the marks the model was unsure about (a long sum can have 10+ ones and
+    # brackets, and trying 3 choices for every one of them would take far too long)
+
+    unsure = sorted(look_alikes, key=lambda i: probs[i][labels[i]])[:8]
     best, best_score = None, -1.0
     for choice in product(LOOK_ALIKES, repeat=len(unsure)):
         trial = labels[:]
         for i, label in zip(unsure, choice):
             trial[i] = label
         score = float(np.prod([probs[i][label] for i, label in zip(unsure, choice)]))
-        if score > best_score and is_sum("".join(label_text(t) for t in trial)):
+        
+        if score > best_score and is_sum(text(trial)):
             best, best_score = trial, score
     return (best if best is not None else labels), confidences
 
