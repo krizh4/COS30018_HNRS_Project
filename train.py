@@ -36,6 +36,7 @@ MODELS = {
        "cnn_aug": (BetterCNN, True, False),      # same network as cnn_bn, trained on augmented pictures
        "vit": (TinyViT, False, False),
        "cnn_junk": (lambda: BetterCNN(num_classes=11), True, True),   # cnn_aug + 11th class "not a digit"
+       "cnn_math": (lambda: BetterCNN(num_classes=17), True, "math"),   # cnn_junk + 6 maths signs (extension)
    }
 
 

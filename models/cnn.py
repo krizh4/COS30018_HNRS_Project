@@ -32,9 +32,17 @@ def get_loaders(batch_size=128, augment=False, junk=False, root=ROOT):
 
     
     if junk:   # add "not a digit" pictures as an 11th class (label 10)
-           from models.junk import JunkDigits, PipelineStyleMNIST
-           train_set = ConcatDataset([train_set, PipelineStyleMNIST(train_set), JunkDigits(12000, seed=1)])
-           test_set = ConcatDataset([test_set, PipelineStyleMNIST(test_set), JunkDigits(2000, seed=2)])
+        from models.junk import JunkDigits, PipelineStyleMNIST
+        math = junk == "math"                  # cnn_math: a flat line is a minus sign, so no dashes in the junk
+        extra_train = [PipelineStyleMNIST(train_set), JunkDigits(12000, seed=1, no_dash=math)]
+        extra_test = [PipelineStyleMNIST(test_set), JunkDigits(2000, seed=2, no_dash=math)]
+        
+        if math:   # and the signs + - x ÷ ( ) as labels 11-16
+            from models.symbols import MathSymbols
+            extra_train.append(MathSymbols(6000, seed=3))
+            extra_test.append(MathSymbols(1000, seed=4))
+        train_set = ConcatDataset([train_set] + extra_train)
+        test_set = ConcatDataset([test_set] + extra_test)
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_set, batch_size=512, shuffle=False)

@@ -87,9 +87,11 @@ KINDS = [scribble, smooth_scribble, curls, dash, blob, crossed_lines, coil]
 WEIGHTS = [0.2, 0.25, 0.15, 0.1, 0.1, 0.1, 0.1]
 
 
-def make_junk(rng):
+def make_junk(rng, no_dash=False):
     img = np.zeros((SIZE, SIZE), np.uint8)
     kind = KINDS[rng.choice(len(KINDS), p=WEIGHTS)]
+    while no_dash and kind is dash:                    # for cnn_math a flat line is a minus sign, not junk
+        kind = KINDS[rng.choice(len(KINDS), p=WEIGHTS)]
     kind(rng, img, int(rng.integers(6, 16)))
     img = (img > 127).astype(np.uint8) * 255          # pure black/white, like preprocess() gives
     return make_mnist_like(img)
@@ -98,9 +100,9 @@ def make_junk(rng):
 class JunkDigits(Dataset):
     """`count` junk pictures, all labelled 10. Same seed = same pictures (for a fair test set)"""
 
-    def __init__(self, count, seed=0):
+    def __init__(self, count, seed=0, no_dash=False):
         rng = np.random.default_rng(seed)
-        pictures = np.stack([make_junk(rng) for _ in range(count)])
+        pictures = np.stack([make_junk(rng, no_dash) for _ in range(count)])
         self.images = torch.from_numpy(pictures).unsqueeze(1)     # (count, 1, 28, 28) like MNIST tensors
 
     def __len__(self):
