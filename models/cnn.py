@@ -5,13 +5,13 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset, DataLoader
 from torchvision import datasets, transforms
 
 # the data/ folder at the top of the repo. MNIST is saved in data/MNIST/raw
 ROOT = Path(__file__).parent.parent / "data"
 
-def get_loaders(batch_size=128, augment=False, root=ROOT):
+def get_loaders(batch_size=128, augment=False, junk=False, root=ROOT):
     """
     Download MNIST (first time only) and return (train_loader, test_loader)
 
@@ -29,6 +29,12 @@ def get_loaders(batch_size=128, augment=False, root=ROOT):
 
     train_set = datasets.MNIST(root, train=True, download=True, transform=train_tf)
     test_set = datasets.MNIST(root, train=False, download=True, transform=test_tf)
+
+    
+    if junk:   # add "not a digit" pictures as an 11th class (label 10)
+           from models.junk import JunkDigits, PipelineStyleMNIST
+           train_set = ConcatDataset([train_set, PipelineStyleMNIST(train_set), JunkDigits(12000, seed=1)])
+           test_set = ConcatDataset([test_set, PipelineStyleMNIST(test_set), JunkDigits(2000, seed=2)])
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_set, batch_size=512, shuffle=False)

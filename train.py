@@ -29,12 +29,14 @@ CHECKPOINT_DIR = Path("checkpoints")
 RESULTS_DIR = Path("results")
 
 MODELS = {
-    "mlp": (MLP, False),
-    "cnn": (SimpleCNN, False),
-    "cnn_bn": (BetterCNN, False),
-    "cnn_aug": (BetterCNN, True),      # same network as cnn_bn, trained on augmented pictures
-    "vit": (TinyViT, False),
-}
+   
+       "mlp": (MLP, False, False),
+       "cnn": (SimpleCNN, False, False),
+       "cnn_bn": (BetterCNN, False, False),
+       "cnn_aug": (BetterCNN, True, False),      # same network as cnn_bn, trained on augmented pictures
+       "vit": (TinyViT, False, False),
+       "cnn_junk": (lambda: BetterCNN(num_classes=11), True, True),   # cnn_aug + 11th class "not a digit"
+   }
 
 
 def get_device():
@@ -61,9 +63,9 @@ def train(name, epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LEARNING_RATE):
     """Train model `name`, save it, and return its final test accuracy."""
     torch.manual_seed(SEED)
     device = get_device()
-    make_model, augment = MODELS[name]
+    make_model, augment, junk = MODELS[name]
     model = make_model().to(device)                # build the model and move it to the GPU
-    train_loader, test_loader = get_loaders(batch_size=batch_size, augment=augment)
+    train_loader, test_loader = get_loaders(batch_size=batch_size, augment=augment, junk=junk)
 
     loss_fn = nn.CrossEntropyLoss()                # measures how wrong the 10 scores are
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)   # the rule for updating weights
@@ -108,7 +110,7 @@ def train(name, epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LEARNING_RATE):
 
 def load_trained_model(name):
     """Rebuild model `name` and load its saved weights, ready to make predictions."""
-    make_model, _ = MODELS[name]
+    make_model = MODELS[name][0]
     model = make_model()
     model.load_state_dict(torch.load(CHECKPOINT_DIR / f"{name}.pt", map_location="cpu"))
     model.eval()
