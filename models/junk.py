@@ -56,8 +56,35 @@ def coil(rng, img, pen):
         cv2.ellipse(img, centre, axes, rng.uniform(0, 180), 0, 360, 255, pen, cv2.LINE_AA)
 
 
-KINDS = [scribble, dash, blob, crossed_lines, coil]
-WEIGHTS = [0.35, 0.2, 0.15, 0.15, 0.15]
+def smooth(points, rounds=3):
+    """Chaikin's corner cutting: turns a zig-zag into a smooth curve"""
+    for _ in range(rounds):
+        a, b = points[:-1], points[1:]
+        points = np.concatenate([points[:1], np.stack([0.75 * a + 0.25 * b, 0.25 * a + 0.75 * b], 1).reshape(-1, 2), points[-1:]])
+    return points
+
+
+def smooth_scribble(rng, img, pen):
+    """A smooth, loopy pen path - the tricky kind that looks almost like a 3, 8 or 9"""
+    points = rng.uniform(20, SIZE - 20, size=(rng.integers(7, 13), 2))
+    cv2.polylines(img, [smooth(points).astype(np.int32)], False, 255, pen, cv2.LINE_AA)
+
+
+def curls(rng, img, pen):
+    """Joined-up loops like cursive 'llll' or 'eeee', going in a random direction"""
+    loops = rng.uniform(2, 5)
+    t = np.linspace(0, 2 * np.pi * loops, 200)
+    radius = rng.uniform(20, 40)
+    x = (t / t[-1] - 0.5) * rng.uniform(100, 170) + radius * np.cos(t)
+    y = radius * rng.uniform(0.6, 1.4) * np.sin(t)
+    angle = rng.uniform(0, np.pi)
+    xr = SIZE / 2 + x * np.cos(angle) - y * np.sin(angle)
+    yr = SIZE / 2 + x * np.sin(angle) + y * np.cos(angle)
+    cv2.polylines(img, [np.stack([xr, yr], 1).astype(np.int32)], False, 255, pen, cv2.LINE_AA)
+
+
+KINDS = [scribble, smooth_scribble, curls, dash, blob, crossed_lines, coil]
+WEIGHTS = [0.2, 0.25, 0.15, 0.1, 0.1, 0.1, 0.1]
 
 
 def make_junk(rng):
