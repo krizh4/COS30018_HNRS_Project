@@ -24,7 +24,7 @@ import cv2
 import numpy as np
 from flask import Flask, jsonify, request, send_from_directory
 
-from pipeline import NOT_A_DIGIT, recognise
+from pipeline import label_text, recognise
 from predictor import available_models, load_model
 from train import MODELS, train
 
@@ -104,7 +104,7 @@ def recognise_json(image, settings, expected=None):
         "number": r["number"],
         "answer": calculate(r["number"]),
         "valid": r["valid"],
-        "labels": ["✗" if label == NOT_A_DIGIT else str(label) for label in r["labels"]],
+        "labels": [label_text(label) for label in r["labels"]],
         "confidences": [round(c, 4) for c in r["confidences"]],
         "boxes": r["boxes"],
         "width": width, "height": height,                  # so the page can scale the boxes
@@ -158,7 +158,7 @@ def page():
 @app.get("/api/models")
 def api_models():
     names = available_models()
-    default = next((m for m in ("cnn_junk", "cnn_aug") if m in names), names[0] if names else None)
+    default = next((m for m in ("cnn_math", "cnn_junk", "cnn_aug") if m in names), names[0] if names else None)
     return jsonify(models=names, default=default,
                    trainable=list(MODELS))
 
