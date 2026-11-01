@@ -59,12 +59,38 @@ def remove_specks(binary, min_area=20):
             cleaned[labels == i] = 255
     return cleaned
 
+def fill_hollow_strokes(binary, gray):
+
+    """Adaptive thresholding keeps only the EDGES of very thick strokes: in the middle of
+    a fat marker line every nearby pixel is just as dark, so it is not 'darker than its
+    surroundings'. Fill every enclosed hole whose colour in the photo is closer to ink than
+    to paper. Real holes (inside 0, 6, 8, 9) are paper-coloured, so they stay open"""
+
+
+    if not binary.any() or binary.all():
+        return binary
+    
+    ink = np.median(gray[binary > 0])
+    paper = np.median(gray[binary == 0])
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(255 - binary, connectivity=4)
+    sizes = np.bincount(labels.ravel(), minlength=count)
+    means = np.bincount(labels.ravel(), weights=gray.ravel().astype(float), minlength=count) / np.maximum(sizes, 1)
+    fill = np.abs(means - ink) < np.abs(means - paper)
+   
+    h, w = binary.shape
+    touches_edge = (stats[:, 0] == 0) | (stats[:, 1] == 0) | (stats[:, 0] + stats[:, 2] == w) | (stats[:, 1] + stats[:, 3] == h)
+    fill &= ~touches_edge                                  # the paper around everything is not a hole
+    fill[0] = False                                        # label 0 = the ink itself
+    filled = binary.copy()
+    filled[fill[labels]] = 255
+    return filled
 
 def preprocess(image, method="adaptive"):
     """full preprocessing for one input image (a numpy array from cv2.imread)"""
 
     gray = to_grayscale(image)
     binary = binarize(gray, method)
+    binary = fill_hollow_strokes(binary, gray)           # thick marker strokes come out hollow
 
     # min_area grows with the image so big phone photos lose more noise than small drawings
     min_area = max(10, int(gray.shape[0] * gray.shape[1] * 0.00002))

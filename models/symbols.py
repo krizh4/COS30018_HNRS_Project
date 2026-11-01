@@ -30,6 +30,9 @@ def wobbly_line(rng, img, p1, p2, pen):
     t = np.linspace(0, 1, 30)[:, None]
     curve = (1 - t) ** 2 * p1 + 2 * (1 - t) * t * bend + t ** 2 * p2    # quadratic Bezier
     cv2.polylines(img, [curve.astype(np.int32)], False, 255, pen, cv2.LINE_AA)
+    for end in (p1, p2):                                       # people often press harder where the pen
+        if rng.random() < 0.3:                                 # lands or lifts, leaving a blob
+            cv2.circle(img, tuple(int(v) for v in end), int(pen * rng.uniform(0.6, 1.0)), 255, -1, cv2.LINE_AA)
 
 
 def at_angle(centre, length, degrees):
@@ -42,7 +45,7 @@ def at_angle(centre, length, degrees):
 def draw_plus(rng, img, pen):
     c = np.array([SIZE / 2, SIZE / 2]) + rng.uniform(-10, 10, 2)
     tilt = rng.uniform(-12, 12)
-    across, down = rng.uniform(60, 160), rng.uniform(60, 160)
+    across, down = max(rng.uniform(60, 160), 3 * pen), max(rng.uniform(60, 160), 3 * pen)
     # the crossing point is not always in the exact middle of each stroke
     wobbly_line(rng, img, *at_angle(c + rng.uniform(-15, 15, 2) * [1, 0], across, tilt), pen)
     wobbly_line(rng, img, *at_angle(c + rng.uniform(-15, 15, 2) * [0, 1], down, 90 + tilt), pen)
@@ -50,23 +53,24 @@ def draw_plus(rng, img, pen):
 
 def draw_minus(rng, img, pen):
     c = np.array([SIZE / 2, SIZE / 2])
-    wobbly_line(rng, img, *at_angle(c, rng.uniform(40, 170), rng.uniform(-10, 10)), pen)   # short and thick to long and thin
+    length = max(rng.uniform(40, 170), 2.5 * pen)                # at least 2.5x longer than thick
+    wobbly_line(rng, img, *at_angle(c, length, rng.uniform(-10, 10)), pen)
 
 
 def draw_times(rng, img, pen):
     c = np.array([SIZE / 2, SIZE / 2])
     tilt = rng.uniform(-12, 12)
-    wobbly_line(rng, img, *at_angle(c, rng.uniform(60, 160), 45 + tilt + rng.uniform(-8, 8)), pen)
-    wobbly_line(rng, img, *at_angle(c, rng.uniform(60, 160), 135 + tilt + rng.uniform(-8, 8)), pen)
+    wobbly_line(rng, img, *at_angle(c, max(rng.uniform(60, 160), 3 * pen), 45 + tilt + rng.uniform(-8, 8)), pen)
+    wobbly_line(rng, img, *at_angle(c, max(rng.uniform(60, 160), 3 * pen), 135 + tilt + rng.uniform(-8, 8)), pen)
 
 
 def draw_divide(rng, img, pen):
     c = np.array([SIZE / 2, SIZE / 2])
-    length = rng.uniform(60, 160)
+    length = max(rng.uniform(60, 160), 3 * pen)
     wobbly_line(rng, img, *at_angle(c, length, rng.uniform(-8, 8)), pen)
     radius = int(max(3, pen * rng.uniform(0.6, 1.1)))
     for side in (-1, 1):                                       # one dot above, one below
-        gap = length * rng.uniform(0.25, 0.45)
+        gap = max(length * rng.uniform(0.25, 0.45), radius + pen)   # dots never touch the line
         dot = c + [rng.uniform(-0.1, 0.1) * length, side * gap]
         cv2.circle(img, tuple(int(v) for v in dot), radius, 255, -1, cv2.LINE_AA)
 
@@ -87,7 +91,7 @@ DRAW = [draw_plus, draw_minus, draw_times, draw_divide,
 
 def make_sign(rng, index):
     img = np.zeros((SIZE, SIZE), np.uint8)
-    DRAW[index](rng, img, int(rng.integers(6, 16)))
+    DRAW[index](rng, img, int(rng.integers(6, 24)))      # thin pen to thick marker
     img = (img > 127).astype(np.uint8) * 255          # pure black/white, like preprocess() gives
     return make_mnist_like(img)
 
