@@ -61,14 +61,15 @@ function showResult(result, image) {
     verdict.textContent = result.correct ? "Correct" : "Wrong";
     detail.append(verdict, ` (expected ${result.expected}) · `);
   } else {
-   detail.append(result.number ? `${result.labels.length} character(s) · ` : "No digits found · ");
+          detail.append(!result.valid ? "Some marks are not digits (✗) · "
+         : result.number ? `${result.number.length} character(s) · ` : "No digits found · ");
   }
   detail.append(`${result.model} · ${result.ms} ms`);
 
   drawPicture();
   $("#digits").replaceChildren(...result.digits.map((src, i) => {
     const cell = document.createElement("div");
-    cell.className = "digit " + (result.confidences[i] >= 0.8 ? "sure" : "unsure");
+          cell.className = "digit " + (result.confidences[i] >= 0.8 && result.labels[i] !== "✗" ? "sure" : "unsure");
     cell.innerHTML = `<img src="${src}" alt="">${result.labels[i]}  ${Math.round(result.confidences[i] * 100)}%`;
     return cell;
   }));

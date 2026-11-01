@@ -25,6 +25,9 @@ from preprocessing.preprocessing import preprocess
 from segmentation.segmentation import segment
 
 
+NOT_A_DIGIT = 10      # the 11th class of cnn_junk: "this mark is not a digit"
+
+
 def recognise(image, model, threshold="adaptive", seg_method="components"):
     binary = preprocess(image, threshold)                  # task 1
     parts = segment(binary, seg_method)                    #  task 2
@@ -37,7 +40,10 @@ def recognise(image, model, threshold="adaptive", seg_method="components"):
         if i > 0 and lines[i] != lines[i - 1]:
             number += " "
         number += str(label)
-    return {"number": number, "boxes": boxes, "labels": labels,
+    valid = NOT_A_DIGIT not in labels                      # one junk mark = not a number
+    if not valid:
+        number = "Not a number"
+    return {"number": number, "valid": valid, "boxes": boxes, "labels": labels,
             "confidences": confidences, "digits": digits, "binary": binary}
 
 
