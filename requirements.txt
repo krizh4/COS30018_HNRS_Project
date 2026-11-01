@@ -4,4 +4,5 @@ pillow
 matplotlib
 scikit-learn
 joblib
+flask
 # PyTorch is installed separately, see README
