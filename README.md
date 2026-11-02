@@ -5,7 +5,7 @@ COS30018 Intelligent Systems | Swinburne University of Technology | Project Opti
 HNRS reads **handwritten multi-digit numbers** from a photo or a drawing. It also reads **simple handwritten sums** (digits with `+ − × ÷ ( )`) and calculates the answer. Everything runs in a local web app: you can draw, upload a photo, build a number from single-digit images, pick a model, change the preprocessing settings, and train models.
 
 ```
-photo / drawing --> 1. Preprocessing --> 2. Segmentation --> 3. Recognition --> 4. Number / sum
+photo / drawing ---> 1. Preprocessing ---> 2. Segmentation ---> 3. Recognition ---> 4. Number / sum
                     grayscale, threshold,  one box per mark,    CNN gives a label   join in reading order,
                     fill, clean            28x28 MNIST-style    + confidence        check, calculate
 ```
@@ -33,7 +33,8 @@ photo / drawing --> 1. Preprocessing --> 2. Segmentation --> 3. Recognition --> 
 
 - **Multi-digit numbers** from phone photos, scans or a drawing canvas (for example `2026`, `4719`).
 - **Several lines** of writing, read top to bottom with a space between lines.
-- **Five digit models to compare**: MLP, simple CNN, CNN with batch normalisation, CNN with data augmentation, and a small Vision Transformer.
+- **Eight digit models to compare**: five neural networks (MLP, simple CNN, CNN with batch normalisation, CNN with data augmentation, a small Vision Transformer) and three classic machine-learning models (SVM, k-nearest neighbours, Random Forest).
+- **Automatic evaluation**: one script tests every model on single digits, whole numbers, real photos and sums, compares the preprocessing and segmentation methods, and saves tables and charts.
 - **"Not a number" detection**: scribbles and random marks are rejected instead of being forced into a digit.
 - **Maths extension**: recognises `+ − × ÷ ( )` and calculates the result, for example `(3+4)×2 = 14`.
 - **Image acquisition both ways** (as the brief asks): load an image file, or build a number automatically from a folder of single-digit images (or from MNIST).
@@ -74,6 +75,7 @@ MNIST is already in `data/MNIST/raw`. If it's missing, torchvision downloads it 
 Trained weights (`checkpoints/`) are **not** stored in git; the team shares them on OneDrive. To make your own, train the models you want. Each one takes 1–2 minutes on a GPU.
 
 ```powershell
+python train_classic.py      # SVM, k-NN and Random Forest (about 1 minute)
 python train.py cnn_aug      # best plain digit model
 python train.py cnn_junk     # digits + "not a digit"
 python train.py cnn_math     # digits + "not a digit" + maths signs (extension)
@@ -121,7 +123,7 @@ Clean-up rules after that:
 - Drop noise much smaller than the biggest mark, and dots much smaller than a normal digit. The longer side is used, so a flat minus sign survives.
 - **Merge** boxes that sit above each other, such as a broken "5" or the dots of a ÷, but only if the result is still about one character tall.
 - **Split** touching digits: a wide box is cut where the ink is thinnest, but only if there's a clear "neck".
-- **Group into lines**, then sort left to right, which gives reading order.
+- **Group into lines**: going left to right, each mark joins the line whose most recent mark it overlaps in height. Following the line mark by mark keeps sloping writing together, then lines are read top to bottom.
 - Cut each box out keeping only the blobs fully inside it, so a neighbour's edge doesn't sneak in.
 
 ### Task 3 – Recognition (`predictor.py`, `models/`)
@@ -134,14 +136,14 @@ Each 28×28 picture goes through the chosen model. The model returns a probabili
 2. **Fix look-alikes (cnn_math only).** A "1", "(" and ")" can all be one tall stroke, so the maths decides:
    - In a plain number (no operator), a bracket is always read as 1.
    - In a sum, if the reading isn't valid maths, the 1 / ( / ) choices for the least certain marks are tried. The most likely choice that gives a valid sum is kept.
-3. **Validity check.** The result is **"Not a number"** if any mark is junk (✗), or if any mark's confidence is below **80%**.
+3. **Validity check.** The result is **"Not a number"** if any mark is junk (✗), or if any mark's confidence is below **80%**. In a reading that is a valid sum, the limit is **50%**, because valid maths is extra evidence that the reading is right.
 4. **Calculate (extension).** If there's an operator, `calculate()` works out the answer with a small safe parser. It never uses `eval()`, because the text comes from model guesses.
 
 ---
 
 ## The models
 
-All models are trained with Adam (learning rate 0.001), cross-entropy loss, batch size 128, 5 epochs and seed 42. These are the defaults in `train.py`, and you can change them in the Train tab.
+The neural networks are trained with Adam (learning rate 0.001), cross-entropy loss, batch size 128, 5 epochs and seed 42. These are the defaults in `train.py`, and you can change them in the Train tab. The classic models are trained with scikit-learn by `train_classic.py` and saved as `.joblib` files; the app loads them like any other model.
 
 | Name | Network | Classes | Parameters | Trained on | Purpose |
 |---|---|---|---|---|---|
@@ -152,6 +154,9 @@ All models are trained with Adam (learning rate 0.001), cross-entropy loss, batc
 | `vit` | Tiny Vision Transformer: 16 patches of 7×7, 4 encoder layers, 4 heads, CLS token | 10 | 139k | MNIST | Week 8 transformer approach, for comparison |
 | `cnn_junk` | `cnn_aug` network with 11 outputs | 0–9 + **not a digit** | 871k | MNIST (also in pipeline style) + junk | Rejects scribbles: says "Not a number" |
 | `cnn_math` | `cnn_aug` network with 17 outputs | 0–9, not a digit, `+ − × ÷ ( )` | 873k | MNIST (also in pipeline style) + junk without dashes + maths signs | Extension: reads and calculates sums |
+| `svm` | Support vector machine (RBF kernel) after PCA to 50 features, with calibrated probabilities | 10 | – | 20,000 MNIST digits (an SVM gets very slow with more) | Strongest classic ML baseline |
+| `knn` | k-nearest neighbours (k = 3) after PCA to 50 features | 10 | – | MNIST | Classic baseline: "looks most like these training digits" |
+| `rf` | Random Forest, 100 trees | 10 | – | MNIST | Classic baseline: many voting decision trees |
 
 **Class numbers:**
 
@@ -164,7 +169,7 @@ All models are trained with Adam (learning rate 0.001), cross-entropy loss, batc
 **Which model to use:**
 - **Numbers:** `cnn_junk`. It's as accurate as `cnn_aug` on digits and rejects junk.
 - **Sums:** `cnn_math`.
-- **Comparing techniques in the report:** the other five.
+- **Comparing techniques in the report:** all of them (`evaluate.py` does this for you)
 
 ---
 
@@ -178,7 +183,6 @@ All models are trained with Adam (learning rate 0.001), cross-entropy loss, batc
 | Junk ("not a digit") | 12,000 / 2,000 | `models/junk.py`: random scribbles, smooth loops, cursive curls, flat dashes, filled blobs, crossed lines, coils. `cnn_math` leaves out the dashes, because for it a flat line is a minus sign. |
 | Maths signs | 48,000 / 8,000 | `models/symbols.py`: hand-drawn-style `+ − × ÷ ( )` with random size, slant, wobble, pen thickness (thin pen to thick marker) and blobs where the pen lands. Brackets get twice as many examples, because they look like a "1". |
 
-The junk and sign pictures are **synthetic**: generated by code, not scanned handwriting. They're made with fixed seeds, so every run gets the same pictures.
 
 **Export them as files** in MNIST's IDX format (raw 200×200 drawings and cleaned 28×28 pictures, plus sample sheets):
 
@@ -213,6 +217,9 @@ Run these from the project root, with the virtual environment active.
 
 ```powershell
 python train.py cnn_math                         # train one model -> checkpoints/, results/
+python train_classic.py                          # train SVM, k-NN and Random Forest
+python evaluate.py                               # test everything -> results/evaluation/ (a few minutes)
+python evaluate.py --quick                       # smaller, faster version
 python pipeline.py test_images/2026.jpg cnn_junk # recognise one photo
 python pipeline.py test_images                   # every model on every photo (file name = answer)
 python preprocessing/preprocessing.py test_images/2026.jpg   # show the preprocessing steps
@@ -233,7 +240,9 @@ python export_datasets.py                        # junk + sign datasets in MNIST
 ├── web/                        The page: index.html, app.js, style.css
 ├── pipeline.py                 recognise(): image in -> number/sum out (tasks 1-4)
 ├── predictor.py                Load models and get probabilities for 28x28 pictures
-├── train.py                    Train, test and save any model; the MODELS list
+├── train.py                    Train, test and save any neural network; the MODELS list
+├── train_classic.py            Train the classic models: SVM, k-NN, Random Forest
+├── evaluate.py                 Test every model and the whole system; tables and charts for the report
 ├── preprocessing/
 │   └── preprocessing.py        Grayscale, thresholds, hollow-stroke fill, specks, make_mnist_like()
 ├── segmentation/
@@ -247,7 +256,8 @@ python export_datasets.py                        # junk + sign datasets in MNIST
 ├── export_datasets.py          Save the junk and sign datasets as MNIST IDX files
 ├── my_processing.py            Standalone preprocessing experiments
 ├── test_images/                Real photos named after their answer (for testing)
-├── results/                    <model>_log.csv: loss and accuracy per epoch (for the report)
+├── results/                    <model>_log.csv (loss and accuracy per epoch), classic_results.csv,
+│   └── evaluation/             everything evaluate.py measures: CSV tables and PNG charts
 ├── data/MNIST/raw/             MNIST in its original IDX format
 ├── checkpoints/                Trained weights (not in git, shared on OneDrive)
 └── requirements.txt
@@ -256,6 +266,18 @@ python export_datasets.py                        # junk + sign datasets in MNIST
 ---
 
 ## Results
+
+`python evaluate.py` measures everything below and more, and saves it in `results/evaluation/`:
+
+| File | What it shows |
+|---|---|
+| `single_digit.csv`, `confusion_<model>.png` | Every model on the 10,000 MNIST test digits: accuracy, per-digit accuracy, speed, and which digits get mixed up |
+| `multi_digit.csv`, `model_comparison.png` | Whole numbers (2–6 digits, made of MNIST test digits) through the full pipeline. One wrong digit makes the whole number wrong, so this is lower than single-digit accuracy |
+| `photos.csv` | Every model on every photo in `test_images/` |
+| `threshold_comparison.csv` | fixed / Otsu / adaptive on the photos and on badly lit pictures (a shadow across the page) |
+| `segmentation_comparison.csv` | components / contours / projection, and components without the "split touching digits" rule, on spaced and touching digits |
+| `extension.csv` | Written sums and the sum photos: read exactly? correct answer? |
+| `training_curves.png`, `method_comparison.png` | Charts for the report |
 
 Final test accuracy after 5 epochs, from `results/<model>_log.csv`:
 
@@ -268,16 +290,15 @@ Final test accuracy after 5 epochs, from `results/<model>_log.csv`:
 | `vit` | 97.72% | MNIST test set |
 | `cnn_junk` | 99.07% | MNIST + pipeline-style MNIST + junk test pictures |
 | `cnn_math` | 99.17% | MNIST + pipeline-style MNIST + junk + maths-sign test pictures |
+| `svm`, `knn`, `rf` | see `results/classic_results.csv` | MNIST test set |
 
 **Real photos:** with `adaptive` thresholding, `cnn_aug`, `cnn_junk` and `cnn_math` read all the number photos in `test_images/` correctly. Run `python pipeline.py test_images` to check every model.
 
-**Threshold comparison** on the photos:
-- `adaptive` gets the digit count right on all of them.
-- `otsu` and `fixed` fail when the light is uneven.
+**Threshold comparison:** all three methods handle the clean photos, but with uneven lighting `adaptive` stays far ahead of `fixed` and `otsu` (see `threshold_comparison.csv`). That's why `adaptive` is the default.
 
-**Extension:** `test_images/test-math-expression01.jpeg` reads `(1521×7692)-(121+321)` and gives `= 11699090`.
+**Extension:** `test-math-expression01.jpeg` reads `(1521×7692)-(121+321) = 11699090`, and the sloping `test-math-expression02.jpeg` reads `969+4×3÷5-6+10×105-1×8 = 2007.4`.
 
-The accuracy for `cnn_junk` and `cnn_math` is measured on a bigger test set that includes generated pictures, so it isn't directly comparable with the MNIST-only rows. The generated sign test pictures come from the same generator as the training ones, so their accuracy is optimistic. Drawn and photographed sums are the fairer test.
+The accuracy for `cnn_junk` and `cnn_math` is measured on a bigger test set that includes written pictures, so it isn't directly comparable with the MNIST-only rows.
 
 ---
 
