@@ -72,19 +72,28 @@ def merge_overlapping(boxes, max_height):
 
 def group_into_lines(boxes):
     """Reading order: lines top to bottom, each line left to right.
-    A box joins a line when its vertical middle falls inside that line's top..bottom."""
+
+    Walk through the marks from left to right. A mark joins the line whose LAST mark it
+    overlaps most in height; if it overlaps none, it starts a new line. Following the
+    last mark (not the whole line's top..bottom) keeps a line together even when the
+    writing slopes up or down across the page, and a small mark like "-" can't start
+    a line of its own."""
+
     lines = []
-    for box in sorted(boxes, key=lambda b: b[1] + b[3] / 2):
+    for box in sorted(boxes, key=lambda b: b[0]):
         x, y, w, h = box
-        middle = y + h / 2
+        best, best_overlap = None, 0.0
         for line in lines:
-            if line["top"] <= middle <= line["bottom"]:
-                line["boxes"].append(box)
-                line["top"], line["bottom"] = min(line["top"], y), max(line["bottom"], y + h)
-                break
+            _, ly, _, lh = line[-1]                          # the line's right-most mark so far
+            overlap = min(y + h, ly + lh) - max(y, ly)
+            if overlap > 0.3 * min(h, lh) and overlap > best_overlap:
+                best, best_overlap = line, overlap
+        if best is None:
+            lines.append([box])
         else:
-            lines.append({"top": y, "bottom": y + h, "boxes": [box]})
-    return [sorted(line["boxes"], key=lambda b: b[0]) for line in lines]
+            best.append(box)
+    lines.sort(key=lambda line: np.mean([y + h / 2 for _, y, _, h in line]))    # top line first
+    return lines
 
 
 def crop_box(binary, labels, stats, box):
@@ -188,12 +197,12 @@ if __name__ == "__main__":
 
     shown = image.copy()
     thickness = max(2, image.shape[1] // 250)            # thicker lines on big phone photos
-    for ax, (_, digit) in zip(axes[1:], parts):
+    for (x, y, w, h), _, _ in parts:                      # a red box around every mark
         cv2.rectangle(shown, (x, y), (x + w, y + h), (0, 0, 255), thickness)
     fig, axes = plt.subplots(1, len(parts) + 1, figsize=(3 * (len(parts) + 1), 3))
     axes = np.atleast_1d(axes)
     axes[0].imshow(cv2.cvtColor(shown, cv2.COLOR_BGR2RGB))
-    for ax, (_, digit) in zip(axes[1:], parts):
+    for ax, (_, digit, _) in zip(axes[1:], parts):      # each part is (box, digit, line)
         ax.imshow(digit, cmap="gray")
     for ax in axes:
         ax.axis("off")

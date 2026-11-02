@@ -31,6 +31,7 @@ from segmentation.segmentation import segment
 
 NOT_A_DIGIT = 10      # the 11th class of cnn_junk: "this mark is not a digit"
 MIN_CONFIDENCE = 0.8  # below this the model is guessing, so don't trust the number
+MIN_CONFIDENCE_IN_SUM = 0.5  # a reading that is valid maths is extra evidence, so allow less sure marks
 SIGNS = {11: "+", 12: "-", 13: "×", 14: "÷", 15: "(", 16: ")"}   # the extra classes of cnn_math
 
 
@@ -109,7 +110,9 @@ def recognise(image, model, threshold="adaptive", seg_method="components"):
         if i > 0 and lines[i] != lines[i - 1]:
             number += " "
         number += label_text(label)
-    valid = NOT_A_DIGIT not in labels and min(confidences, default=1.0) >= MIN_CONFIDENCE
+    in_sum = any(label in OPERATORS for label in labels) and is_sum(number.replace(" ", ""))
+    needed = MIN_CONFIDENCE_IN_SUM if in_sum else MIN_CONFIDENCE
+    valid = NOT_A_DIGIT not in labels and min(confidences, default=1.0) >= needed
     if not valid:
         number = "Not a number"
     return {"number": number, "valid": valid, "boxes": boxes, "labels": labels,
