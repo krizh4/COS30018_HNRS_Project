@@ -1,0 +1,3 @@
+model,test_set,cases,read_exactly,answer_correct
+cnn_math,generated sums,500,83.6,83.6
+cnn_math,sum photos,2,100.0,100.0

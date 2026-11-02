@@ -1,0 +1,4 @@
+threshold,photos_number_accuracy,uneven_light_count_correct,uneven_light_number_accuracy
+fixed,100.0,84.3,79.3
+otsu,100.0,31.0,29.0
+adaptive,100.0,97.7,95.0
