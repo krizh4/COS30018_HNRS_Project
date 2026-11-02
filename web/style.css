@@ -39,6 +39,7 @@ button {
 }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
 button:disabled { opacity: 0.5; cursor: default; }
+button.tool.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 
 main {
   flex: 1; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px;
@@ -99,3 +100,4 @@ progress { display: block; width: 100%; margin: 14px 0 10px; }
 
 footer { padding: 8px 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; background: var(--card); }
 footer.error { color: var(--bad); }
+#canvas.erasing { cursor: cell; }

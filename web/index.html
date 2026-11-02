@@ -38,6 +38,10 @@
         <canvas id="canvas" width="620" height="260"></canvas>
         <div class="row">
           <button class="primary" id="recognise-drawing">Recognise</button>
+          <button class="tool active" id="pen-tool" title="Draw (P)">Pen</button>
+          <button class="tool" id="eraser-tool" title="Rub out mistakes (E)">Eraser</button>
+          <button id="undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+          <button id="redo" title="Redo (Ctrl+Y)" disabled>Redo</button>
           <button id="clear">Clear</button>
           <label>Pen size <input type="range" id="pen" min="6" max="40" value="16"></label>
           <label class="check"><input type="checkbox" id="live" checked> Recognise when I lift the pen</label>

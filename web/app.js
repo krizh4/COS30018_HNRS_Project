@@ -127,19 +127,67 @@ function point(event) {
           (event.clientY - box.top) * canvas.height / box.height];
 }
 
+// ---------- pen, eraser, undo and redo ----------
+// Before every change the whole canvas is saved as a snapshot. Undo puts the last
+// snapshot back (and keeps the current picture for Redo)
+
+let tool = "pen";                          // "pen" or "eraser"
+const undoStack = [], redoStack = [];
+const MAX_UNDO = 50;                       // enough history, without using lots of memory
+
+function snapshot() {
+  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+function remember() {                      // call this BEFORE changing the canvas
+  undoStack.push(snapshot());
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack.length = 0;                    // a new change throws away the old "redo" steps
+  updateHistoryButtons();
+}
+
+function inkLeft() {                       // is there still any dark pixel on the canvas
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 0; i < pixels.length; i += 4) if (pixels[i] < 128) return true;
+  return false;
+}
+
+function step(from, to) {                  // undo: from = undoStack, to = redoStack (redo: the other way)
+  if (!from.length) return;
+  to.push(snapshot());
+  ctx.putImageData(from.pop(), 0, 0);
+  hasInk = inkLeft();
+  updateHistoryButtons();
+  if (hasInk && $("#live").checked) recogniseDrawing();
+}
+
+function updateHistoryButtons() {
+  $("#undo").disabled = !undoStack.length;
+  $("#redo").disabled = !redoStack.length;
+}
+
+function setTool(name) {
+  tool = name;
+  $("#pen-tool").classList.toggle("active", name === "pen");
+  $("#eraser-tool").classList.toggle("active", name === "eraser");
+  canvas.classList.toggle("erasing", name === "eraser");
+}
+
 function stroke([x, y]) {
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = $("#pen").value;
+  const erasing = tool === "eraser";
+  ctx.strokeStyle = erasing ? "white" : "black";             // erasing = painting with the paper colour
+  ctx.lineWidth = $("#pen").value * (erasing ? 2 : 1);      // a wider eraser is easier to use
   ctx.lineCap = ctx.lineJoin = "round";
   ctx.beginPath();
   ctx.moveTo(...lastPoint);
   ctx.lineTo(x, y);
   ctx.stroke();
   lastPoint = [x, y];
-  hasInk = true;
+  if (!erasing) hasInk = true;
 }
 
 canvas.addEventListener("pointerdown", (event) => {
+  remember();                              // so this stroke can be undone
   drawing = true;
   canvas.setPointerCapture(event.pointerId);
   lastPoint = point(event);
@@ -149,7 +197,8 @@ canvas.addEventListener("pointermove", (event) => { if (drawing) stroke(point(ev
 canvas.addEventListener("pointerup", () => {
   if (!drawing) return;
   drawing = false;
-  if ($("#live").checked) recogniseDrawing();
+  if (tool === "eraser") hasInk = inkLeft();                 // maybe everything was rubbed out
+  if (hasInk && $("#live").checked) recogniseDrawing();
 });
 canvas.addEventListener("pointercancel", () => { drawing = false; });
 
@@ -157,6 +206,7 @@ function recogniseDrawing() {
   if (!hasInk) return setStatus("Draw something first");
   // Copy the drawing onto a white canvas 20 px bigger on every side: segmentation ignores
   // marks touching the picture's edge (in photos that's the table), so strokes mustn't touch it
+  
   const padded = document.createElement("canvas");
   padded.width = canvas.width + 40;
   padded.height = canvas.height + 40;
@@ -168,7 +218,28 @@ function recogniseDrawing() {
 }
 
 $("#recognise-drawing").addEventListener("click", recogniseDrawing);
-$("#clear").addEventListener("click", clearCanvas);
+$("#clear").addEventListener("click", () => {
+  if (hasInk) remember();                  // Clear can be undone too
+  clearCanvas();
+});
+$("#pen-tool").addEventListener("click", () => setTool("pen"));
+$("#eraser-tool").addEventListener("click", () => setTool("eraser"));
+$("#undo").addEventListener("click", () => step(undoStack, redoStack));
+$("#redo").addEventListener("click", () => step(redoStack, undoStack));
+
+// Keyboard: Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo, P pen, E eraser (only on the Draw tab,
+// and not while typing in a text box)
+
+document.addEventListener("keydown", (event) => {
+  if (!$("#draw").classList.contains("active") || event.target.matches("input[type=text], input[type=number], textarea")) return;
+  const key = event.key.toLowerCase();
+  if ((event.ctrlKey || event.metaKey) && key === "z" && !event.shiftKey) step(undoStack, redoStack);
+  else if ((event.ctrlKey || event.metaKey) && (key === "y" || (key === "z" && event.shiftKey))) step(redoStack, undoStack);
+  else if (!event.ctrlKey && !event.metaKey && key === "p") setTool("pen");
+  else if (!event.ctrlKey && !event.metaKey && key === "e") setTool("eraser");
+  else return;
+  event.preventDefault();
+});
 
 // ---------- tab 2: photo ----------
 
