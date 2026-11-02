@@ -4,11 +4,11 @@ COS30018 Intelligent Systems | Swinburne University of Technology | Project Opti
 
 HNRS reads **handwritten multi-digit numbers** from a photo or a drawing. It also reads **simple handwritten sums** (digits with `+ − × ÷ ( )`) and calculates the answer. Everything runs in a local web app: you can draw, upload a photo, build a number from single-digit images, pick a model, change the preprocessing settings, and train models.
 
-```
-photo / drawing ---> 1. Preprocessing ---> 2. Segmentation ---> 3. Recognition ---> 4. Number / sum
-                    grayscale, threshold,  one box per mark,    CNN gives a label   join in reading order,
-                    fill, clean            28x28 MNIST-style    + confidence        check, calculate
-```
+flowchart LR
+    A(["Photo / drawing"]) --> B["<b>1. Preprocessing</b><br/>grayscale, threshold,<br/>fill, clean"]
+    B --> C["<b>2. Segmentation</b><br/>one box per mark,<br/>28×28 MNIST-style"]
+    C --> D["<b>3. Recognition</b><br/>CNN gives a label<br/>+ confidence"]
+    D --> E["<b>4. Number / sum</b><br/>join in reading order,<br/>check, calculate"]
 
 ---
 
