@@ -51,7 +51,12 @@ async function recognise(image, expected = null) {
 
 function showResult(result, image) {
   lastResult = {result, image};
-  $("#number").textContent = (result.number || "–") + (result.answer !== null ? ` = ${result.answer}` : "");
+  if (result.lines.length > 1) {             // several lines of writing: one row each, each with its own answer
+    $("#number").textContent = result.lines.map((line) =>
+      line.text + (line.answer !== null ? ` = ${line.answer}` : "")).join("\n");
+  } else {
+    $("#number").textContent = (result.number || "–") + (result.answer !== null ? ` = ${result.answer}` : "");
+  }
 
   const detail = $("#detail");
   detail.replaceChildren();

@@ -78,7 +78,7 @@ progress { display: block; width: 100%; margin: 14px 0 10px; }
 }
 
 .result h2 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-.number { font-size: 52px; font-weight: 700; line-height: 1.1; word-break: break-all; }
+.number { font-size: 52px; font-weight: 700; line-height: 1.1; word-break: break-all; white-space: pre-line; }
 .detail { color: var(--muted); margin: 4px 0 14px; }
 .detail .good { color: var(--good); font-weight: 600; }
 .detail .bad { color: var(--bad); font-weight: 600; }

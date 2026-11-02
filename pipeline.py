@@ -103,19 +103,22 @@ def recognise(image, model, threshold="adaptive", seg_method="components"):
     lines = [line for _, _, line in parts]
     probs = predict_probs(model, digits)                   # task 3
     labels, confidences = probs.argmax(axis=1).tolist(), probs.max(axis=1).tolist()
-    labels, confidences = fix_look_alikes(labels, confidences, probs)
-    number = ""                                            # join in reading order,
-    
-    for i, label in enumerate(labels):                     # with a space where a new line starts
-        if i > 0 and lines[i] != lines[i - 1]:
-            number += " "
-        number += label_text(label)
-    in_sum = any(label in OPERATORS for label in labels) and is_sum(number.replace(" ", ""))
-    needed = MIN_CONFIDENCE_IN_SUM if in_sum else MIN_CONFIDENCE
-    valid = NOT_A_DIGIT not in labels and min(confidences, default=1.0) >= needed
-    if not valid:
-        number = "Not a number"
-    return {"number": number, "valid": valid, "boxes": boxes, "labels": labels,
+
+    # Task 4, one line at a time: every line of writing is its own number or sum
+    texts, valid = [], True
+    for line in sorted(set(lines)):
+        idx = [i for i, n in enumerate(lines) if n == line]
+        fixed, sure = fix_look_alikes([labels[i] for i in idx], [confidences[i] for i in idx], probs[idx])
+        for k, i in enumerate(idx):
+            labels[i], confidences[i] = fixed[k], sure[k]
+        text = "".join(label_text(label) for label in fixed)
+        in_sum = any(label in OPERATORS for label in fixed) and is_sum(text)
+        needed = MIN_CONFIDENCE_IN_SUM if in_sum else MIN_CONFIDENCE
+        valid = valid and NOT_A_DIGIT not in fixed and min(sure, default=1.0) >= needed
+        texts.append(text)
+        
+    number = " ".join(texts) if valid else "Not a number"   # lines in reading order, space between
+    return {"number": number, "valid": valid, "lines": texts if valid else [], "boxes": boxes, "labels": labels,
             "confidences": confidences, "digits": digits, "binary": binary}
 
 def test_folder(folder):

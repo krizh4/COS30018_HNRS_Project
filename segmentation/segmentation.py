@@ -52,16 +52,21 @@ def boxes_by_projection(binary):
 
 # ---------- clean-up rules ----------
 
-def merge_overlapping(boxes, max_height):
+def merge_overlapping(boxes, max_height, character):
+
     """Join boxes that sit above each other (a broken '5', the dots of a division sign),
     but only if the joined box is still about one character tall. Two digits on
-    different lines also share columns, and joining those makes a box twice as tall."""
+    different lines also share columns, and joining those makes a box twice as tall.
+    The pieces must also be close together (gap under half a character): the dots of a ÷
+    sit near its line, but the next line of writing is a whole character away."""
+
     merged = []
     for bx, by, bw, bh in sorted(boxes, key=lambda b: b[0]):
         for i, (x, y, w, h) in enumerate(merged):           # check every box, not just the last
             overlap = min(x + w, bx + bw) - max(x, bx)
             top, bottom = min(y, by), max(y + h, by + bh)
-            if overlap > 0.5 * min(w, bw) and bottom - top <= 1.3 * max_height:
+            gap = max(y, by) - min(y + h, by + bh)          # empty space between them (< 0: they overlap)
+            if overlap > 0.5 * min(w, bw) and bottom - top <= 1.3 * max_height and gap < 0.5 * character:
                 left = min(x, bx)
                 merged[i] = (left, top, max(x + w, bx + bw) - left, bottom - top)
                 break
@@ -71,6 +76,7 @@ def merge_overlapping(boxes, max_height):
 
 
 def group_into_lines(boxes):
+
     """Reading order: lines top to bottom, each line left to right.
 
     Walk through the marks from left to right. A mark joins the line whose LAST mark it
@@ -154,7 +160,11 @@ def segment(binary, method="components", split_touching=True):
     biggest = max(w * h for _, _, w, h in boxes)
     boxes = [b for b in boxes if b[2] * b[3] > 0.01 * biggest]
 
-    boxes = merge_overlapping(boxes, max_height=max(h for _, _, _, h in boxes))
+        # A normal character's height, from the tall marks only (dots and minus signs are short)
+        
+    heights = [h for _, _, _, h in boxes]
+    character = float(np.median([h for h in heights if h >= 0.4 * max(heights)]))
+    boxes = merge_overlapping(boxes, max(heights), character)
 
     # Drop marks far smaller than a normal digit (a full stop, a stray dot): the model
     # would blow them up to 20x20 and read a filled circle as "0". Using the longer

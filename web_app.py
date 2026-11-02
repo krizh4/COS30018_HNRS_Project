@@ -103,6 +103,7 @@ def recognise_json(image, settings, expected=None):
     return {
         "number": r["number"],
         "answer": calculate(r["number"]),
+        "lines": [{"text": text, "answer": calculate(text)} for text in r["lines"]],   # one per line of writing
         "valid": r["valid"],
         "labels": [label_text(label) for label in r["labels"]],
         "confidences": [round(c, 4) for c in r["confidences"]],
