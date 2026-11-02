@@ -184,12 +184,6 @@ The neural networks are trained with Adam (learning rate 0.001), cross-entropy l
 | Maths signs | 48,000 / 8,000 | `models/symbols.py`: hand-drawn-style `+ − × ÷ ( )` with random size, slant, wobble, pen thickness (thin pen to thick marker) and blobs where the pen lands. Brackets get twice as many examples, because they look like a "1". |
 
 
-**Export them as files** in MNIST's IDX format (raw 200×200 drawings and cleaned 28×28 pictures, plus sample sheets):
-
-```powershell
-python export_datasets.py      # writes datasets_export/ (about 40 MB, not committed to git)
-```
-
 ---
 
 ## Using the web app
