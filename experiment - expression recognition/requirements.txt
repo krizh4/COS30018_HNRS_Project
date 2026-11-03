@@ -1,0 +1,4 @@
+tensorflow>=2.15
+opencv-python-headless>=4.8
+pillow>=10.0
+numpy>=1.24
