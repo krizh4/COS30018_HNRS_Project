@@ -1,23 +1,21 @@
 """
 MNIST data loading + the CNN models.
-
-Run this file directly to check the data loads:  python models/cnn.py
 """
 from pathlib import Path
-from torch import nn
-
 import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader
+
+from torch import nn
+from torch.utils.data import ConcatDataset, DataLoader
 from torchvision import datasets, transforms
 
 # the data/ folder at the top of the repo. MNIST is saved in data/MNIST/raw
 ROOT = Path(__file__).parent.parent / "data"
 
-def get_loaders(batch_size=128, augment=False, root=ROOT):
-    """Download MNIST (first time only) and return (train_loader, test_loader)
+def get_loaders(batch_size=128, augment=False, junk=False, root=ROOT):
+    """
+    Download MNIST (first time only) and return (train_loader, test_loader)
 
-    augment = True randomly rotates, shifts and resizes the TRAINING pictures a little,
-    so the model gets used to messy real handwriting. Test pictures are never changed
+    augment = True randomly rotates, shifts and resizes the TRAINING pictures a little, so the model gets used to messy real handwriting. Test pictures are never changed
     """
     if augment:
         train_tf = transforms.Compose([
@@ -26,10 +24,25 @@ def get_loaders(batch_size=128, augment=False, root=ROOT):
         ])
     else:
         train_tf = transforms.ToTensor()
+    
     test_tf = transforms.ToTensor()          # test pictures stay exactly as they are
 
     train_set = datasets.MNIST(root, train=True, download=True, transform=train_tf)
     test_set = datasets.MNIST(root, train=False, download=True, transform=test_tf)
+
+    
+    if junk:   # add "not a digit" pictures as an 11th class (label 10)
+        from models.junk import JunkDigits, PipelineStyleMNIST
+        math = junk == "math"                  # cnn_math: a flat line is a minus sign, so no dashes in the junk
+        extra_train = [PipelineStyleMNIST(train_set), JunkDigits(12000, seed=1, no_dash=math)]
+        extra_test = [PipelineStyleMNIST(test_set), JunkDigits(2000, seed=2, no_dash=math)]
+        
+        if math:   # and the signs + - x ÷ ( ) as labels 11-16
+            from models.symbols import MathSymbols
+            extra_train.append(MathSymbols(6000, seed=3))
+            extra_test.append(MathSymbols(1000, seed=4))
+        train_set = ConcatDataset([train_set] + extra_train)
+        test_set = ConcatDataset([test_set] + extra_test)
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_set, batch_size=512, shuffle=False)

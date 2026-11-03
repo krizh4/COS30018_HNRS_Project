@@ -1,0 +1,5 @@
+segmentation,photos_number_accuracy,spaced_number_accuracy,touching_count_correct,touching_number_accuracy
+components,100.0,96.0,91.0,87.0
+contours,100.0,96.0,91.0,87.0
+projection,100.0,96.0,81.5,78.0
+"components, no splitting",100.0,96.0,78.0,75.5

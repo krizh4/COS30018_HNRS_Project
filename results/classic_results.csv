@@ -1,0 +1,4 @@
+model,train_digits,test_acc,train_seconds,test_seconds
+knn,60000,97.52,0.4,0.3
+rf,60000,96.69,1.9,0.1
+svm,20000,97.82,7.5,2.2

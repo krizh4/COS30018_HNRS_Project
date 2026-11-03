@@ -32,15 +32,19 @@ def load_model(name):
     return load_trained_model(name)              # a pytorch model
 
 
-def predict_digits(model, digits):
-    """Return (labels, confidences): the guessed digit and how sure the model is (0..1)"""
+def predict_probs(model, digits):
+    """Probability of every class for every picture: array of shape (pictures, classes)"""
     x = np.asarray(digits, dtype=np.float32)
     if len(x) == 0:
-        return [], []
+        return np.zeros((0, 10))
     if isinstance(model, torch.nn.Module):
         with torch.no_grad():
             scores = model(torch.from_numpy(x).unsqueeze(1))     # add the channel dimension
-            probs = torch.softmax(scores, dim=1).numpy()          # scores ---> probabilities
-    else:
-        probs = model.predict_proba(x.reshape(len(x), -1))       # sklearn wants flat rows of 784
+            return torch.softmax(scores, dim=1).numpy()          # scores ---> probabilities
+    return model.predict_proba(x.reshape(len(x), -1))            # sklearn wants flat rows of 784
+
+
+def predict_digits(model, digits):
+    """Return (labels, confidences): the guessed digit and how sure the model is (0..1)"""
+    probs = predict_probs(model, digits)
     return probs.argmax(axis=1).tolist(), probs.max(axis=1).tolist()
